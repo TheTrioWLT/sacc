@@ -1,3 +1,7 @@
+pub mod command_line;
+pub fn compiler_config(args: self::command_line::CompilerConfig) {
+    println!("{:?}", args);
+}
 #[cfg(test)]
 mod tests {
     #[test]
