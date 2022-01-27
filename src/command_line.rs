@@ -1,5 +1,7 @@
 use clap::Parser;
 
+///Structure that hold the different types of
+///flags or arguments.
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 pub struct CompilerConfig {

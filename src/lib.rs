@@ -1,4 +1,6 @@
 pub mod command_line;
+
+//Simple function to test the flag system.
 pub fn compiler_config(args: self::command_line::CompilerConfig) {
     println!("{:?}", args);
 }
