@@ -8,7 +8,7 @@ jobs:
     steps: 
     - uses: actions/checkout@v1
     - name: CargoBuild Check
-      run: | cargo check && cargo build && cargo run
+      run: cargo check && cargo build && cargo run
 
 
   rustfmt:
