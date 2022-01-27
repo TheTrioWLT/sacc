@@ -2,6 +2,15 @@ name: CI
 on: [push, pull_request]
 
 jobs:
+  build:
+    name: CargoBuild
+    runs-on: ubuntu-latest
+    steps: 
+    - uses: actions/checkout@v1
+    - name: CargoBuild Check
+      run: | cargo check && cargo build && cargo run
+
+
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
