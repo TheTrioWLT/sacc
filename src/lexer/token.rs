@@ -11,7 +11,7 @@ pub enum TokenKind {
     #[regex("[ \t]+")]
     Whitespace,
 
-    #[token("\n")]
+    #[regex("\r\n|\r|\n")]
     Newline,
 
     #[error]
