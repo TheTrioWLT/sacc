@@ -10,8 +10,10 @@
 
 use std::num::NonZeroU16;
 
+use crate::diagnostic::Source;
+
 /// A high level unnamed register
-// Use use `NonZeroU16` and give up one bit so that the niche optimization can help us.
+// Use use `NonZeroU16` and give up one value so that the niche optimization can help us.
 // Register numbers are arbitrary anyway, so just start at 1
 pub struct Register(NonZeroU16);
 
@@ -101,7 +103,7 @@ pub enum Instruction<USize> {
         b: StorageLocation<USize>,
         dst: StorageLocation<USize>,
         value: PrimitiveValue,
-    }, 
+    },
 
     /// Calls a function, storing the return value in `return_value`
     Call {
@@ -110,8 +112,35 @@ pub enum Instruction<USize> {
     },
 
     /// Returns the specified value, or `None` for void
+    // TODO: How will we return structs?
     Return {
         value: Option<StorageLocation<USize>>,
-    }
+    },
 }
 
+/// Represents a reference to a function
+/// This is simply a index into a function inside a `CompilationUnit`
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FunctionRef(usize);
+
+/// Represents a single high level assembled function
+pub struct Function<'name, USize> {
+    name: &'name str,
+    instructions: Vec<Instruction<USize>>,
+}
+
+/// Represents a partially assembled compilation unit with multiple functions
+pub struct CompilationUnit<'name, 'source, USize> {
+    functions: Vec<Function<'name, USize>>,
+    //TODO: globals: Vec<???>,
+    
+    source: &'source Source,
+}
+
+impl<'name, 'source, USize> CompilationUnit<'name, 'source, USize> {
+
+    /// Returns a reference to the desired function
+    fn get_function(&self, function: FunctionRef) -> &Function<'name, USize> {
+        &self.functions[function.0]
+    }
+}
