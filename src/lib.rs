@@ -1,3 +1,6 @@
+mod diagnostic;
+mod lexer;
+
 #[cfg(test)]
 mod tests {
     #[test]
