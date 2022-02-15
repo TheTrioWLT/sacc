@@ -1,5 +1,5 @@
-mod diagnostic;
-mod lexer;
+pub mod diagnostic;
+pub mod lexer;
 
 #[cfg(test)]
 mod tests {

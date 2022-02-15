@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 logos = "0.12.0"
+termcolor = "1.1.2"
+elsa = "1.6.0"
+typed-arena = "2.0.1"
+pathdiff = "0.2.1"
