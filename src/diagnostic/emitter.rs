@@ -7,7 +7,7 @@ use termcolor::{ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use super::{
     styled::{StyledBuffer, StyledString},
-    Diagnostic, SourceFile, SourceManager, SourceName,
+    Diagnostic, Level, SourceManager, SourceName, Span,
 };
 
 /// A trait describing a type that can emit diagnostics
@@ -71,68 +71,58 @@ impl TextEmitter {
             super::styled::Style::MainHeaderMsg,
         ));
 
+        let max_spaces = self.max_line_num_width(diag);
+        let mut is_first = true;
+
         if let Some(primary) = diag.primary {
-            let source_file =
-                if let Some(source_file) = self.source_manager.get_file(primary.source) {
-                    source_file
-                } else {
-                    panic!(
-                        "SourceManager recieved invalid SourceFile index from span {:?}",
-                        primary
-                    )
-                };
+            self.emit_line(&mut buffer, primary, None, true, max_spaces, diag.level);
+            is_first = false;
+        }
 
-            if let SourceName::Real(path) = &source_file.name {
-                let rel_path =
-                    pathdiff::diff_paths(path, std::env::current_dir().unwrap()).unwrap();
-                let path_os = rel_path.as_os_str();
-                let path = path_os.to_str().unwrap();
+        for (span, label) in diag.spans.iter() {
+            self.emit_line(
+                &mut buffer,
+                *span,
+                Some(label.clone()),
+                is_first,
+                max_spaces,
+                diag.level,
+            );
+            is_first = false;
+        }
 
-                if let Some((line, col)) = source_file.lookup_location(primary) {
-                    let line_string = source_file.span_to_line(primary).unwrap();
+        for subd in diag.children.iter() {
+            if let Some(span) = subd.span {
+                buffer.puts(subd.level.as_styled_string());
 
-                    let line_num_size = format!("{}", line).len();
+                buffer.puts(StyledString::new(
+                    format!(": {}\n", subd.message),
+                    super::styled::Style::MainHeaderMsg,
+                ));
 
-                    let vertical_bar = StyledString::new(
-                        format!("{:spaces$} | \n", "", spaces = line_num_size),
-                        super::styled::Style::LineAndColumn,
-                    );
-
-                    //   **-->**
-                    buffer.puts(StyledString::new(
-                        format!("--> "),
-                        super::styled::Style::LineAndColumn,
-                    ));
-
-                    //   --> **src/file.c:2:5**
-                    buffer.puts(StyledString::new(
-                        format!("{}:{}:{}\n", path, line + 1, col + 1),
-                        super::styled::Style::NoStyle,
-                    ));
-
-                    buffer.puts(vertical_bar.clone());
-
-                    buffer.puts(StyledString::new(
-                        format!("{} | ", line),
-                        super::styled::Style::LineAndColumn,
-                    ));
-
-                    // TODO: In the future possibly cut off leading or trailing whitespace/code in such
-                    // a way as to not wrap to the next line even if there is a lot of code
-                    buffer.puts(StyledString::new(
-                        format!("{}\n", line_string),
-                        super::styled::Style::NoStyle,
-                    ));
-
-                    buffer.puts(vertical_bar);
-                } else {
-                    panic!("Unable to get the source location of a Span from a real source file");
-                }
+                self.emit_line(&mut buffer, span, None, true, max_spaces, subd.level);
             } else {
-                // TODO: REPLACE!
-                todo!("Replace this with the code that would follow the tree of a macro expansion or anything else that isn't a real source file");
+                buffer.puts(StyledString::new(
+                    format!("{:spaces$} = ", "", spaces = max_spaces),
+                    super::styled::Style::LineAndColumn,
+                ));
+
+                buffer.puts(StyledString::new(
+                    format!("{}: ", subd.level.to_str()),
+                    super::styled::Style::MainHeaderMsg,
+                ));
+
+                buffer.puts(StyledString::new(
+                    format!("{}\n", subd.message),
+                    super::styled::Style::NoStyle,
+                ));
             }
         }
+
+        buffer.puts(StyledString::new(
+            String::from("\n"),
+            super::styled::Style::NoStyle,
+        ));
 
         // Render the buffer we have accumulated
         self.render_buffer(&mut stream, &buffer)?;
@@ -162,8 +152,142 @@ impl TextEmitter {
         Ok(())
     }
 
-    fn emit_line(&mut self, buffer: &mut StyledBuffer, file: Rc<SourceFile>, line: &Line) {
-        todo!();
+    fn max_line_num_width(&self, diag: &Diagnostic) -> usize {
+        let mut spans = Vec::new();
+        let mut max_width = 0;
+
+        if let Some(primary) = diag.primary {
+            spans.push(primary);
+        }
+
+        // That could kind of be a lot of copies, is this a concern?
+        for (span, _) in diag.spans.iter() {
+            spans.push(*span);
+        }
+
+        for span in spans {
+            let source_file = if let Some(source_file) = self.source_manager.get_file(span.source) {
+                source_file
+            } else {
+                panic!(
+                    "SourceManager recieved invalid SourceFile index from span {:?}",
+                    span
+                )
+            };
+
+            if let SourceName::Real(_) = &source_file.name {
+                if let Some(loc) = source_file.lookup_location(span) {
+                    max_width = max_width.max(format!("{}", loc.line).len());
+                }
+            } else {
+                panic!("Unable to get the source location of a Span from a real source file");
+            }
+        }
+
+        max_width
+    }
+
+    fn emit_line(
+        &mut self,
+        buffer: &mut StyledBuffer,
+        span: Span,
+        label: Option<String>,
+        is_first: bool,
+        max_spaces: usize,
+        level: Level,
+    ) {
+        let source_file = if let Some(source_file) = self.source_manager.get_file(span.source) {
+            source_file
+        } else {
+            panic!(
+                "SourceManager recieved invalid SourceFile index from span {:?}",
+                span
+            )
+        };
+
+        if let SourceName::Real(path) = &source_file.name {
+            let rel_path = pathdiff::diff_paths(path, std::env::current_dir().unwrap()).unwrap();
+            let path_os = rel_path.as_os_str();
+            let path = path_os.to_str().unwrap();
+
+            if let Some(loc) = source_file.lookup_location(span) {
+                let line_string = source_file.span_to_line(span).unwrap();
+
+                let vertical_bar = StyledString::new(
+                    format!("{:spaces$} | \n", "", spaces = max_spaces),
+                    super::styled::Style::LineAndColumn,
+                );
+
+                if is_first {
+                    //   **-->**
+                    buffer.puts(StyledString::new(
+                        format!("--> "),
+                        super::styled::Style::LineAndColumn,
+                    ));
+
+                    //   --> **src/file.c:2:5**
+                    buffer.puts(StyledString::new(
+                        format!("{}:{}:{}\n", path, loc.line + 1, loc.col + 1),
+                        super::styled::Style::NoStyle,
+                    ));
+                }
+
+                buffer.puts(vertical_bar.clone());
+
+                buffer.puts(StyledString::new(
+                    format!("{} | ", loc.line),
+                    super::styled::Style::LineAndColumn,
+                ));
+
+                // TODO: In the future possibly cut off leading or trailing whitespace/code in such
+                // a way as to not wrap to the next line even if there is a lot of code
+                buffer.puts(StyledString::new(
+                    format!("{}\n", line_string),
+                    super::styled::Style::NoStyle,
+                ));
+
+                buffer.puts(StyledString::new(
+                    format!("{:spaces$} | ", "", spaces = max_spaces),
+                    super::styled::Style::LineAndColumn,
+                ));
+
+                let mut annotation = String::with_capacity(span.end - span.start);
+
+                for _ in 0..annotation.capacity() {
+                    annotation.push('^');
+                }
+
+                if let Some(label) = label {
+                    buffer.puts(StyledString::new(
+                        format!(
+                            "{:cols$}{} {}\n",
+                            "",
+                            annotation,
+                            label,
+                            cols = (loc.col + loc.col_offset) as usize
+                        ),
+                        super::styled::Style::Level(level),
+                    ));
+                } else {
+                    buffer.puts(StyledString::new(
+                        format!(
+                            "{:cols$}{}\n",
+                            "",
+                            annotation,
+                            cols = (loc.col + loc.col_offset) as usize
+                        ),
+                        super::styled::Style::Level(level),
+                    ));
+                }
+
+                buffer.puts(vertical_bar);
+            } else {
+                panic!("Unable to get the source location of a Span from a real source file");
+            }
+        } else {
+            // TODO: REPLACE!
+            todo!("Replace this with the code that would follow the tree of a macro expansion or anything else that isn't a real source file");
+        }
     }
 }
 

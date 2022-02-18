@@ -71,7 +71,7 @@ pub enum PTokenKind {
 
     /// Any non-newline whitespace, which we can't skip for the single reason that: preprocessor
     /// operations
-    #[regex(r"[ \t\f]+")]
+    #[regex("[ \t]+")]
     Whitespace,
 
     /// A generic error where the lexer encounters something it cannot recognize
