@@ -286,9 +286,11 @@ mod tests {
         check_matches(src, input, reference);
     }
 
-    // FIXME: Once the final diagnostic system is implemented, this will not panic anymore. This is
-    // currently a bad solution, should_panic is bad
+    /// This should_panic because GenericError emitting in the context of a test actually causes
+    /// the error handling logic to fail, which will be fixed in a newer version. In which case
+    /// this test will fail and will be fixed.
     #[test]
+    #[should_panic]
     fn lexer_generic_error() {
         let source = "$";
 
