@@ -19,7 +19,7 @@ fn main() {
 
     let path = Path::new("test.c");
 
-    match session.load_file(&path) {
+    match session.load_file(path) {
         Ok(root_src) => {
             if let Ok(tokens) = lex(&session, root_src) {
                 for token in tokens.iter() {

@@ -111,8 +111,17 @@ impl SourceFile {
     }
 }
 
+// We allow this because FrozenVec automatically de-ref's its contents when using .get(), so we do
+// this so that it doesn't automatically de-ref the Rc<>
+#[allow(clippy::redundant_allocation)]
 pub struct SourceManager {
     files: FrozenVec<Box<Rc<SourceFile>>>,
+}
+
+impl Default for SourceManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SourceManager {

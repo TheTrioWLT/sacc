@@ -80,3 +80,9 @@ impl StyledBuffer {
         self.parts.iter()
     }
 }
+
+impl Default for StyledBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}

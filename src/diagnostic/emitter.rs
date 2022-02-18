@@ -221,7 +221,7 @@ impl TextEmitter {
                 if is_first {
                     //   **-->**
                     buffer.puts(StyledString::new(
-                        format!("--> "),
+                        String::from("--> "),
                         super::styled::Style::LineAndColumn,
                     ));
 

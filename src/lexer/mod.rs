@@ -10,6 +10,7 @@ use crate::diagnostic::{session::Session, SourceFile};
 pub type LexResult = Result<Vec<PToken>, ()>;
 
 /// Runs the Lexer that takes the input source string and produces a Vec<PToken> for later preprocessing
+#[allow(clippy::result_unit_err)]
 pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
     let mut tokens = Vec::new();
 
@@ -36,18 +37,15 @@ pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
             end: index + slice.len(),
         };
 
-        match token.kind {
-            PTokenKind::ErrorGeneric => {
-                let text = session.span_to_string(token.into()).unwrap();
+        if token.kind == PTokenKind::ErrorGeneric {
+            let text = session.span_to_string(token.into()).unwrap();
 
-                session
-                    .struct_error(format!("error lexing token `{}`", text))
-                    .span_label(token.into(), "invalid token found")
-                    .emit();
+            session
+                .struct_error(format!("error lexing token `{}`", text))
+                .span_label(token.into(), "invalid token found")
+                .emit();
 
-                had_error = true;
-            }
-            _ => {}
+            had_error = true;
         }
 
         index += slice.len();
