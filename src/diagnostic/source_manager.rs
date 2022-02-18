@@ -61,7 +61,7 @@ impl SourceFile {
     pub fn span_to_string(&self, span: Span) -> Option<String> {
         let src = self.src.as_ref()?;
 
-        Some((&src[span.start..span.end]).to_string())
+        Some((src[span.start..span.end]).to_string())
     }
 
     /// This function returns the source line that this span came from, and replaces any tab
