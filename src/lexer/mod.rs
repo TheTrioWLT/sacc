@@ -36,21 +36,21 @@ pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
             end: index + slice.len(),
         };
 
-        // FIXME: If this token is an error, for now we will panic
         match token.kind {
             PTokenKind::ErrorGeneric => {
                 let text = session.span_to_string(token.into()).unwrap();
 
                 session
-                    .struct_span_error(token.into(), format!("error lexing token `{}`", text))
+                    .struct_error(format!("error lexing token `{}`", text))
+                    .span_label(token.into(), "invalid token found")
                     .emit();
 
                 had_error = true;
             }
-            _ => {
-                index += slice.len();
-            }
+            _ => {}
         }
+
+        index += slice.len();
 
         tokens.push(token);
     }

@@ -27,10 +27,7 @@ struct HandlerInner {
 
 impl HandlerInner {
     pub(crate) fn new(emitter: Box<dyn Emitter>) -> Self {
-        Self {
-            emitter,
-            // source_manager,
-        }
+        Self { emitter }
     }
 }
 

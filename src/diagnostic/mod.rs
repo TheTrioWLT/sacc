@@ -28,10 +28,10 @@ pub struct DiagnosticBuilder<'a> {
 impl<'a> DiagnosticBuilder<'a> {
     /// For internal use only, creates a new DiagnosticBuilder. For clients, the struct_* methods
     /// on a Session or Handler should be used instead.
-    pub(crate) fn new(handler: &'a Handler, level: Level, message: String) -> Self {
+    pub(crate) fn new(handler: &'a Handler, level: Level, message: impl Into<String>) -> Self {
         let diagnostic = Diagnostic {
             level,
-            message,
+            message: message.into(),
             primary: None,
             spans: Vec::new(),
             children: Vec::new(),
@@ -49,23 +49,39 @@ impl<'a> DiagnosticBuilder<'a> {
         self
     }
 
-    pub fn span_label(&mut self, span: Span, label: String) -> &mut Self {
-        self.diagnostic.spans.push((span, label));
+    pub fn span_label(&mut self, span: Span, label: impl Into<String>) -> &mut Self {
+        self.diagnostic.spans.push((span, label.into()));
 
         self
     }
 
     /// Adds a note message to the diagnostic
-    pub fn note(&mut self, message: String) -> &mut Self {
-        let subd = SubDiagnostic::new(Level::Note, message, None);
+    pub fn note(&mut self, message: impl Into<String>) -> &mut Self {
+        let subd = SubDiagnostic::new(Level::Note, message.into(), None);
+        self.diagnostic.children.push(subd);
+
+        self
+    }
+
+    /// Adds a note message with a separate span to the diagnostic
+    pub fn span_note(&mut self, span: Span, message: impl Into<String>) -> &mut Self {
+        let subd = SubDiagnostic::new(Level::Note, message.into(), Some(span));
         self.diagnostic.children.push(subd);
 
         self
     }
 
     /// Adds a help message to the diagnostic
-    pub fn help(&mut self, message: String) -> &mut Self {
-        let subd = SubDiagnostic::new(Level::Help, message, None);
+    pub fn help(&mut self, message: impl Into<String>) -> &mut Self {
+        let subd = SubDiagnostic::new(Level::Help, message.into(), None);
+        self.diagnostic.children.push(subd);
+
+        self
+    }
+
+    /// Adds a help message with a separate span to the diagnostic
+    pub fn span_help(&mut self, span: Span, message: impl Into<String>) -> &mut Self {
+        let subd = SubDiagnostic::new(Level::Help, message.into(), Some(span));
         self.diagnostic.children.push(subd);
 
         self
@@ -146,12 +162,40 @@ pub struct Loc {
     /// The line number, starting at line 0!
     pub line: usize,
     /// The column number
-    pub col: usize,
+    pub col: u32,
+    /// The column offset for the Span that created, this. This is non-zero when the line contained
+    /// tabs pre-Span, which need to be offset by 3 space characters
+    pub col_offset: u32,
 }
 
 impl Loc {
-    pub fn new(file: Rc<SourceFile>, line: usize, col: usize) -> Self {
-        Self { file, line, col }
+    pub fn new(file: Rc<SourceFile>, line: usize, col: u32, col_offset: u32) -> Self {
+        Self {
+            file,
+            line,
+            col,
+            col_offset,
+        }
+    }
+}
+
+/// A source location broken down into the line, column, and column offset, which is useful for
+/// showing diagnostics. This differs from the regular Loc in that it doesn't contain a file
+/// attribute because this is queried directly from a SourceFile
+#[derive(Debug, Clone, Copy)]
+pub struct FileLoc {
+    pub line: usize,
+    pub col: u32,
+    pub col_offset: u32,
+}
+
+impl FileLoc {
+    pub fn new(line: usize, col: u32, col_offset: u32) -> Self {
+        Self {
+            line,
+            col,
+            col_offset,
+        }
     }
 }
 

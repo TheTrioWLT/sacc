@@ -5,7 +5,7 @@ use std::{
 
 use elsa::FrozenVec;
 
-use super::{Loc, Span};
+use super::{FileLoc, Loc, Span};
 
 /// A name for a source of tokens
 #[derive(Debug)]
@@ -35,7 +35,7 @@ impl SourceFile {
 
             for line in src.split('\n') {
                 lines.push((index, index + line.len()));
-                index += line.len();
+                index += line.len() + 1; // We add an extra 1 to offset for the \n character we skipped
             }
         }
 
@@ -64,22 +64,50 @@ impl SourceFile {
         Some((&src[span.start..span.end]).to_string())
     }
 
+    /// This function returns the source line that this span came from, and replaces any tab
+    /// characters with 4 spaces for display
     pub fn span_to_line(&self, span: Span) -> Option<String> {
         let index = self.get_line(span)?;
         let line = self.lines.get(index)?;
 
         let src = self.src.as_ref()?;
 
-        Some((&src[line.0..line.1]).to_string())
+        let line_before = &src[line.0..line.1];
+
+        // Now we replace \t's with "    "
+
+        let mut line_after = String::new();
+
+        for c in line_before.chars() {
+            if c == '\t' {
+                line_after.push_str("    ");
+            } else {
+                line_after.push(c);
+            }
+        }
+
+        Some(line_after)
     }
 
-    /// Returns the source file (0-indexed line number, 0-indexed column) for the given Span, based
-    /// off of the span.start
-    pub fn lookup_location(&self, span: Span) -> Option<(usize, usize)> {
+    /// Returns the source FileLoc for the given Span, based off of the span.start
+    pub fn lookup_location(&self, span: Span) -> Option<FileLoc> {
         let index = self.get_line(span)?;
         let line = self.lines.get(index)?;
+        let col = span.start - line.0;
 
-        Some((index, span.start - line.0))
+        let src = self.src.as_ref()?;
+
+        let before_span = &src[line.0..span.start];
+
+        let mut col_offset = 0;
+
+        for c in before_span.chars() {
+            if c == '\t' {
+                col_offset += 3;
+            }
+        }
+
+        Some(FileLoc::new(index, col as u32, col_offset))
     }
 }
 
@@ -136,12 +164,18 @@ impl SourceManager {
     pub fn lookup_location(&self, span: Span) -> Option<Loc> {
         let source_file = self.files.get(span.source)?;
 
-        let (line, col) = source_file.lookup_location(span)?;
+        let file_loc = source_file.lookup_location(span)?;
 
-        Some(Loc::new(source_file.clone(), line, col))
+        Some(Loc::new(
+            source_file.clone(),
+            file_loc.line,
+            file_loc.col,
+            file_loc.col_offset,
+        ))
     }
 
-    /// Returns the String that represents the entire source line that a Span begins on
+    /// This function returns the source line that this span came from, and replaces any tab
+    /// characters with 4 spaces for display
     pub fn span_to_line(&self, span: Span) -> Option<String> {
         let source_file = self.files.get(span.source)?;
 
