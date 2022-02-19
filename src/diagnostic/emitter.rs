@@ -165,21 +165,14 @@ impl TextEmitter {
         }
 
         for span in spans {
-            let source_file = if let Some(source_file) = self.source_manager.get_file(span.source) {
-                source_file
-            } else {
-                panic!(
-                    "SourceManager recieved invalid SourceFile index from span {:?}",
-                    span
-                )
-            };
+            let source_file = self.source_manager.get_file_unwrap(span.source);
 
             if let SourceName::Real(_) = &source_file.name {
                 if let Some(loc) = source_file.lookup_location(span) {
                     max_width = max_width.max(format!("{}", loc.line).len());
+                } else {
+                    panic!("Unable to get the source location of a Span from a real source file");
                 }
-            } else {
-                panic!("Unable to get the source location of a Span from a real source file");
             }
         }
 
@@ -195,14 +188,7 @@ impl TextEmitter {
         max_spaces: usize,
         level: Level,
     ) {
-        let source_file = if let Some(source_file) = self.source_manager.get_file(span.source) {
-            source_file
-        } else {
-            panic!(
-                "SourceManager recieved invalid SourceFile index from span {:?}",
-                span
-            )
-        };
+        let source_file = self.source_manager.get_file_unwrap(span.source);
 
         if let SourceName::Real(path) = &source_file.name {
             let rel_path = pathdiff::diff_paths(path, std::env::current_dir().unwrap()).unwrap();

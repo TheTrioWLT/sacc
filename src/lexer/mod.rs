@@ -10,7 +10,6 @@ use crate::diagnostic::{session::Session, SourceFile};
 pub type LexResult = Result<Vec<PToken>, ()>;
 
 /// Runs the Lexer that takes the input source string and produces a Vec<PToken> for later preprocessing
-#[allow(clippy::result_unit_err)]
 pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
     let mut tokens = Vec::new();
 

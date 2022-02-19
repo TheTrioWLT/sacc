@@ -164,9 +164,17 @@ impl SourceManager {
         Ok(self.files.push_get(Box::new(Rc::new(source_file))).clone())
     }
 
-    /// Returns a reference to a SourceFile at the given index
+    /// Returns a reference to a SourceFile at the given index, or None if the index is invalid
     pub fn get_file(&self, index: usize) -> Option<Rc<SourceFile>> {
         self.files.get(index).cloned()
+    }
+
+    /// Returns a reference to a SourceFile at the given index, or panics if the index is invalid
+    pub fn get_file_unwrap(&self, index: usize) -> Rc<SourceFile> {
+        self.files.get(index).cloned().expect(&format!(
+            "SourceManager recieved invalid SourceFile index ({}) during get_file_unwrap()",
+            index
+        ))
     }
 
     /// Returns a Loc that represents where this span is inside of a source file
