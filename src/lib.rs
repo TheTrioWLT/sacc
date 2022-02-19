@@ -1,5 +1,6 @@
-mod diagnostic;
-mod lexer;
+#![allow(clippy::result_unit_err)]
+pub mod diagnostic;
+pub mod lexer;
 
 #[cfg(test)]
 mod tests {

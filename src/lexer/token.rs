@@ -1,5 +1,6 @@
-use crate::diagnostic::Source;
 use logos::Logos;
+
+use crate::diagnostic::{SourceIndex, Span};
 
 /// An Enum that represents a token as provided by Logos, which will later be converted into the
 /// regular TokenKind after preprocessing
@@ -70,7 +71,7 @@ pub enum PTokenKind {
 
     /// Any non-newline whitespace, which we can't skip for the single reason that: preprocessor
     /// operations
-    #[regex(r"[ \t\f]+")]
+    #[regex("[ \t]+")]
     Whitespace,
 
     /// A generic error where the lexer encounters something it cannot recognize
@@ -81,14 +82,27 @@ pub enum PTokenKind {
 /// A token that has been produced by the lexer from C source code, which is fed into the
 /// preprocessor
 #[derive(Debug, Clone, Copy)]
-pub struct PToken<'a, 'b> {
-    // The kind of token
+pub struct PToken {
+    /// The kind of token
     pub kind: PTokenKind,
 
-    // A reference to the source that this token belongs to, this could be a file or something like
-    // a macro expansion
-    pub source: &'a Source,
+    /// A index into the SourceManager to the source that this token belongs to, this could be a file or something like
+    /// a macro expansion
+    pub source: SourceIndex,
 
-    // The text that this token represents, a section of a source file
-    pub text: &'b str,
+    /// The start index (by characters) into the source string
+    pub start: usize,
+
+    /// The end index (by characters) into the source string
+    pub end: usize,
+}
+
+impl From<PToken> for Span {
+    fn from(token: PToken) -> Self {
+        Self {
+            start: token.start,
+            end: token.end,
+            source: token.source,
+        }
+    }
 }
