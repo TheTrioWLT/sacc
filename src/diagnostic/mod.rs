@@ -126,7 +126,7 @@ impl<'a> Drop for DiagnosticBuilder<'a> {
         if !self.cancelled() {
             let mut db = DiagnosticBuilder::new(
                 self.handler,
-                Level::Bug,
+                Level::InternalError,
                 "the following error was constructed but not emitted".to_string(),
             );
 
@@ -222,7 +222,7 @@ impl Span {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Level {
     /// An internal bug in the compiler
-    Bug,
+    InternalError,
     /// A general error during the normal compilation process
     Error,
     /// A warning
@@ -247,7 +247,7 @@ impl Level {
         let mut spec = ColorSpec::new();
 
         let color = match self {
-            Level::Bug | Level::Error => ERROR_COLOR,
+            Level::InternalError | Level::Error => ERROR_COLOR,
             Level::Warning => WARNING_COLOR,
             Level::Note => NOTE_COLOR,
             Level::Help => HELP_COLOR,
@@ -263,7 +263,7 @@ impl Level {
     /// Returns the text representation of the diagnostic level
     pub fn to_str(&self) -> &'static str {
         match self {
-            Level::Bug => "internal compiler error",
+            Level::InternalError => "internal compiler error",
             Level::Error => "error",
             Level::Warning => "warning",
             Level::Note => "note",
@@ -275,7 +275,7 @@ impl Level {
     /// Returns true if this diagnostic level is considered fatal, false otherwise
     pub fn is_fatal(&self) -> bool {
         match self {
-            Level::Bug | Level::Error => true,
+            Level::InternalError | Level::Error => true,
             Level::Note | Level::Help | Level::Warning | Level::Cancelled => false,
         }
     }

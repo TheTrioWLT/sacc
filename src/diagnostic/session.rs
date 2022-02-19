@@ -40,8 +40,8 @@ impl Session {
         db
     }
 
-    pub fn struct_bug(&self, message: impl Into<String>) -> DiagnosticBuilder {
-        DiagnosticBuilder::new(&self.handler, super::Level::Bug, message.into())
+    pub fn struct_internal_error(&self, message: impl Into<String>) -> DiagnosticBuilder {
+        DiagnosticBuilder::new(&self.handler, super::Level::InternalError, message.into())
     }
 
     pub fn struct_error(&self, message: impl Into<String>) -> DiagnosticBuilder {
