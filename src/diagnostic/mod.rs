@@ -246,21 +246,16 @@ impl Level {
     fn color(&self) -> ColorSpec {
         let mut spec = ColorSpec::new();
 
-        match self {
-            Level::Bug | Level::Error => {
-                spec.set_fg(Some(ERROR_COLOR)).set_intense(true);
-            }
-            Level::Warning => {
-                spec.set_fg(Some(WARNING_COLOR)).set_intense(true);
-            }
-            Level::Note => {
-                spec.set_fg(Some(NOTE_COLOR)).set_intense(true);
-            }
-            Level::Help => {
-                spec.set_fg(Some(HELP_COLOR)).set_intense(true);
-            }
-            Level::Cancelled => {}
-        }
+        let color = match self {
+            Level::Bug | Level::Error => ERROR_COLOR,
+            Level::Warning => WARNING_COLOR,
+            Level::Note => NOTE_COLOR,
+            Level::Help => HELP_COLOR,
+            Level::Cancelled => unreachable!(),
+        };
+
+        spec.set_fg(Some(color));
+        spec.set_intense(true);
 
         spec
     }
