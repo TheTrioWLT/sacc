@@ -7,6 +7,10 @@ use elsa::FrozenVec;
 
 use super::{FileLoc, Loc, Span};
 
+/// An index into the SourceManager's internal SourceFiles
+#[derive(Debug, Copy, Clone)]
+pub struct SourceIndex(usize);
+
 /// A name for a source of tokens
 #[derive(Debug)]
 pub enum SourceName {
@@ -20,14 +24,14 @@ pub enum SourceName {
 #[derive(Debug)]
 pub struct SourceFile {
     pub name: SourceName,
-    /// The index into the SourceManager's Vec<SourceFile> that this SourceFile is positioned at
-    pub index: usize,
+    /// The index into the SourceManager's internal SourceFiles that this SourceFile is positioned at
+    pub index: SourceIndex,
     pub src: Option<String>,
     pub lines: Vec<(usize, usize)>,
 }
 
 impl SourceFile {
-    pub fn new(name: SourceName, src: Option<String>, index: usize) -> Self {
+    pub fn new(name: SourceName, src: Option<String>, index: SourceIndex) -> Self {
         let mut lines = Vec::new();
 
         if let Some(ref src) = src {
@@ -138,7 +142,7 @@ impl SourceManager {
 
     pub fn add_file(&self, mut source_file: SourceFile) -> Rc<SourceFile> {
         // Assign the correct index
-        source_file.index = self.files.len();
+        source_file.index = SourceIndex(self.files.len());
 
         let source_file = Rc::new(source_file);
 
@@ -147,39 +151,44 @@ impl SourceManager {
         source_file
     }
 
+    /// ATTENTION: This function should ***ONLY*** be used in tests and should NOT be used in any
+    /// situation during real compilation
+    #[allow(dead_code)]
+    pub(crate) fn create_dummy_file(&self, source: impl Into<String>) -> Rc<SourceFile> {
+        self.new_source_file(SourceName::Real(PathBuf::new()), source.into())
+    }
+
     pub fn load_file(&self, path: &Path) -> std::io::Result<Rc<SourceFile>> {
         let src = std::fs::read_to_string(path)?;
         let filename = SourceName::Real(std::fs::canonicalize(path)?);
 
-        self.new_source_file(filename, src)
+        Ok(self.new_source_file(filename, src))
     }
 
-    fn new_source_file(
-        &self,
-        filename: SourceName,
-        src: String,
-    ) -> std::io::Result<Rc<SourceFile>> {
-        let source_file = SourceFile::new(filename, Some(src), self.files.len());
+    fn new_source_file(&self, filename: SourceName, src: String) -> Rc<SourceFile> {
+        let source_file = SourceFile::new(filename, Some(src), SourceIndex(self.files.len()));
 
-        Ok(self.files.push_get(Box::new(Rc::new(source_file))).clone())
+        self.files.push_get(Box::new(Rc::new(source_file))).clone()
     }
 
     /// Returns a reference to a SourceFile at the given index, or None if the index is invalid
-    pub fn get_file(&self, index: usize) -> Option<Rc<SourceFile>> {
-        self.files.get(index).cloned()
+    pub fn get_file(&self, index: SourceIndex) -> Option<Rc<SourceFile>> {
+        self.files.get(index.0).cloned()
     }
 
     /// Returns a reference to a SourceFile at the given index, or panics if the index is invalid
-    pub fn get_file_unwrap(&self, index: usize) -> Rc<SourceFile> {
-        self.files.get(index).cloned().expect(&format!(
-            "SourceManager recieved invalid SourceFile index ({}) during get_file_unwrap()",
-            index
-        ))
+    pub fn get_file_unwrap(&self, index: SourceIndex) -> Rc<SourceFile> {
+        self.files.get(index.0).cloned().unwrap_or_else(|| {
+            panic!(
+                "SourceManager recieved invalid SourceFile index ({}) during get_file_unwrap()",
+                index.0
+            )
+        })
     }
 
     /// Returns a Loc that represents where this span is inside of a source file
     pub fn lookup_location(&self, span: &Span) -> Option<Loc> {
-        let source_file = self.files.get(span.source)?;
+        let source_file = self.files.get(span.source.0)?;
 
         let file_loc = source_file.lookup_location(span)?;
 
@@ -194,14 +203,14 @@ impl SourceManager {
     /// This function returns the source line that this span came from, and replaces any tab
     /// characters with 4 spaces for display
     pub fn span_to_line(&self, span: &Span) -> Option<String> {
-        let source_file = self.files.get(span.source)?;
+        let source_file = self.files.get(span.source.0)?;
 
         source_file.span_to_line(span)
     }
 
     /// Returns the String that is contained in the span provided
     pub fn span_to_string(&self, span: &Span) -> Option<String> {
-        let source_file = self.files.get(span.source)?;
+        let source_file = self.files.get(span.source.0)?;
 
         source_file.span_to_string(span)
     }

@@ -61,9 +61,9 @@ pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, rc::Rc};
+    use std::rc::Rc;
 
-    use crate::diagnostic::{session::Session, Handler, SourceFile, SourceManager, SourceName};
+    use crate::diagnostic::{session::Session, Handler, SourceFile, SourceManager};
 
     use super::{PToken, PTokenKind};
 
@@ -82,13 +82,7 @@ mod tests {
 
         let session = Session::new(source_manager.clone(), handler);
 
-        let source_file = SourceFile::new(
-            SourceName::Real(PathBuf::new()),
-            Some(source.to_string()),
-            0,
-        );
-
-        let source_file = source_manager.add_file(source_file);
+        let source_file = source_manager.create_dummy_file(source);
 
         (session, source_file)
     }

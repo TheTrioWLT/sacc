@@ -1,6 +1,6 @@
 use logos::Logos;
 
-use crate::diagnostic::Span;
+use crate::diagnostic::{SourceIndex, Span};
 
 /// An Enum that represents a token as provided by Logos, which will later be converted into the
 /// regular TokenKind after preprocessing
@@ -88,7 +88,7 @@ pub struct PToken {
 
     /// A index into the SourceManager to the source that this token belongs to, this could be a file or something like
     /// a macro expansion
-    pub source: usize,
+    pub source: SourceIndex,
 
     /// The start index (by characters) into the source string
     pub start: usize,

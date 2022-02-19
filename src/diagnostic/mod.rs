@@ -208,12 +208,12 @@ pub struct Span {
     pub start: usize,
     /// The end index into the source String
     pub end: usize,
-    /// The index into the SourceManager's SourceFile Vec
-    pub source: usize,
+    /// The index into the SourceManager's internal SourceFiles
+    pub source: SourceIndex,
 }
 
 impl Span {
-    pub fn new(start: usize, end: usize, source: usize) -> Self {
+    pub fn new(start: usize, end: usize, source: SourceIndex) -> Self {
         Self { start, end, source }
     }
 }
