@@ -38,7 +38,7 @@ pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
         };
 
         if token.kind == PTokenKind::ErrorGeneric {
-            let text = session.span_to_string(token.into()).unwrap();
+            let text = session.span_to_string(&token.into()).unwrap();
 
             session
                 .struct_error(format!("error lexing token `{}`", text))
@@ -115,7 +115,7 @@ mod tests {
         // Check each element
         for (&token, (kind, text)) in input.iter().zip(reference) {
             assert_eq!(token.kind, kind);
-            assert_eq!(src.span_to_string(token.into()).unwrap(), text);
+            assert_eq!(src.span_to_string(&token.into()).unwrap(), text);
         }
     }
 

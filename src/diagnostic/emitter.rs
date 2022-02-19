@@ -75,14 +75,14 @@ impl TextEmitter {
         let mut is_first = true;
 
         if let Some(primary) = diag.primary {
-            self.emit_line(&mut buffer, primary, None, true, max_spaces, diag.level);
+            self.emit_line(&mut buffer, &primary, None, true, max_spaces, diag.level);
             is_first = false;
         }
 
         for (span, label) in diag.spans.iter() {
             self.emit_line(
                 &mut buffer,
-                *span,
+                span,
                 Some(label.clone()),
                 is_first,
                 max_spaces,
@@ -100,7 +100,7 @@ impl TextEmitter {
                     super::styled::Style::MainHeaderMsg,
                 ));
 
-                self.emit_line(&mut buffer, span, None, true, max_spaces, subd.level);
+                self.emit_line(&mut buffer, &span, None, true, max_spaces, subd.level);
             } else {
                 buffer.puts(StyledString::new(
                     format!("{:spaces$} = ", "", spaces = max_spaces),
@@ -156,13 +156,12 @@ impl TextEmitter {
         let mut spans = Vec::new();
         let mut max_width = 0;
 
-        if let Some(primary) = diag.primary {
+        if let Some(primary) = &diag.primary {
             spans.push(primary);
         }
 
-        // That could kind of be a lot of copies, is this a concern?
         for (span, _) in diag.spans.iter() {
-            spans.push(*span);
+            spans.push(span);
         }
 
         for span in spans {
@@ -190,7 +189,7 @@ impl TextEmitter {
     fn emit_line(
         &mut self,
         buffer: &mut StyledBuffer,
-        span: Span,
+        span: &Span,
         label: Option<String>,
         is_first: bool,
         max_spaces: usize,

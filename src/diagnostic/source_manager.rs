@@ -48,7 +48,7 @@ impl SourceFile {
     }
 
     /// Gets the index into this SourceFile's lines Vec that this span is in
-    fn get_line(&self, span: Span) -> Option<usize> {
+    fn get_line(&self, span: &Span) -> Option<usize> {
         for (line, (begin, end)) in self.lines.iter().enumerate() {
             if span.start >= *begin && span.start < *end {
                 return Some(line);
@@ -58,7 +58,7 @@ impl SourceFile {
         None
     }
 
-    pub fn span_to_string(&self, span: Span) -> Option<String> {
+    pub fn span_to_string(&self, span: &Span) -> Option<String> {
         let src = self.src.as_ref()?;
 
         Some((src[span.start..span.end]).to_string())
@@ -66,7 +66,7 @@ impl SourceFile {
 
     /// This function returns the source line that this span came from, and replaces any tab
     /// characters with 4 spaces for display
-    pub fn span_to_line(&self, span: Span) -> Option<String> {
+    pub fn span_to_line(&self, span: &Span) -> Option<String> {
         let index = self.get_line(span)?;
         let line = self.lines.get(index)?;
 
@@ -90,7 +90,7 @@ impl SourceFile {
     }
 
     /// Returns the source FileLoc for the given Span, based off of the span.start
-    pub fn lookup_location(&self, span: Span) -> Option<FileLoc> {
+    pub fn lookup_location(&self, span: &Span) -> Option<FileLoc> {
         let index = self.get_line(span)?;
         let line = self.lines.get(index)?;
         let col = span.start - line.0;
@@ -170,7 +170,7 @@ impl SourceManager {
     }
 
     /// Returns a Loc that represents where this span is inside of a source file
-    pub fn lookup_location(&self, span: Span) -> Option<Loc> {
+    pub fn lookup_location(&self, span: &Span) -> Option<Loc> {
         let source_file = self.files.get(span.source)?;
 
         let file_loc = source_file.lookup_location(span)?;
@@ -185,14 +185,14 @@ impl SourceManager {
 
     /// This function returns the source line that this span came from, and replaces any tab
     /// characters with 4 spaces for display
-    pub fn span_to_line(&self, span: Span) -> Option<String> {
+    pub fn span_to_line(&self, span: &Span) -> Option<String> {
         let source_file = self.files.get(span.source)?;
 
         source_file.span_to_line(span)
     }
 
     /// Returns the String that is contained in the span provided
-    pub fn span_to_string(&self, span: Span) -> Option<String> {
+    pub fn span_to_string(&self, span: &Span) -> Option<String> {
         let source_file = self.files.get(span.source)?;
 
         source_file.span_to_string(span)

@@ -53,7 +53,7 @@ impl Session {
     }
 
     /// Returns the String that is contained in the span provided
-    pub fn span_to_string(&self, span: Span) -> Option<String> {
+    pub fn span_to_string(&self, span: &Span) -> Option<String> {
         self.source_manager.span_to_string(span)
     }
 }
