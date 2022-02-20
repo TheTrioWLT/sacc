@@ -134,12 +134,10 @@ pub struct Function<'name, USize> {
 pub struct CompilationUnit<'name, USize> {
     functions: Vec<Function<'name, USize>>,
     //TODO: globals: Vec<???>,
-    
     source: SourceIndex,
 }
 
 impl<'name, USize> CompilationUnit<'name, USize> {
-
     /// Returns a reference to the desired function
     fn get_function(&self, function: FunctionRef) -> &Function<'name, USize> {
         &self.functions[function.0]

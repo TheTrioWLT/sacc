@@ -2,5 +2,5 @@
 // is no state that needs to be passed back to the caller
 #![allow(clippy::result_unit_err)]
 pub mod diagnostic;
-pub mod lexer;
 pub mod generator;
+pub mod lexer;

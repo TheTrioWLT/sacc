@@ -122,7 +122,7 @@ pub struct Diagnostic {
 impl<'a> Drop for DiagnosticBuilder<'a> {
     fn drop(&mut self) {
         // DiagnosticBuilders are sort of bombs if dropped. This had better either be emitted, or
-        // cancelled. If not, we emit a bug error.
+        // cancelled. If not, we emit an internal error.
         if !self.cancelled() {
             let mut db = DiagnosticBuilder::new(
                 self.handler,
