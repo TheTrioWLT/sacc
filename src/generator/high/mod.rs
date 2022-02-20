@@ -10,7 +10,7 @@
 
 use std::num::NonZeroU16;
 
-use crate::diagnostic::Source;
+use crate::diagnostic::SourceIndex;
 
 /// A high level unnamed register
 // Use use `NonZeroU16` and give up one value so that the niche optimization can help us.
@@ -105,7 +105,8 @@ pub enum Instruction<USize> {
         value: PrimitiveValue,
     },
 
-    /// Calls a function, storing the return value in `return_value`
+    /// Calls a function, storing the return value in `return_value`.
+    /// Parameters are passin in registers 1..N
     Call {
         // TODO ??? How do we reference functions at this stage
         return_value: Option<StorageLocation<USize>>,
@@ -130,14 +131,14 @@ pub struct Function<'name, USize> {
 }
 
 /// Represents a partially assembled compilation unit with multiple functions
-pub struct CompilationUnit<'name, 'source, USize> {
+pub struct CompilationUnit<'name, USize> {
     functions: Vec<Function<'name, USize>>,
     //TODO: globals: Vec<???>,
     
-    source: &'source Source,
+    source: SourceIndex,
 }
 
-impl<'name, 'source, USize> CompilationUnit<'name, 'source, USize> {
+impl<'name, USize> CompilationUnit<'name, USize> {
 
     /// Returns a reference to the desired function
     fn get_function(&self, function: FunctionRef) -> &Function<'name, USize> {

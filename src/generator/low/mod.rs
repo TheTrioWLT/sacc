@@ -19,8 +19,8 @@ pub enum Backend {
     X86_64,
 }
 
-pub fn do_codegen<'name, 'source, USize>(
-    unit: CompilationUnit<'name, 'source, USize>,
+pub fn do_codegen<'name, USize>(
+    unit: CompilationUnit<'name, USize>,
     backend: Backend,
 ) /* -> WHAT */
 {
