@@ -15,7 +15,7 @@ use crate::diagnostic::SourceIndex;
 /// A high level unnamed register
 // Use use `NonZeroU16` and give up one value so that the niche optimization can help us.
 // Register numbers are arbitrary anyway, so just start at 1
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Register(NonZeroU16);
 
 /// The size of an integer, either 1, 2, 4, or 8 bytes
@@ -34,13 +34,18 @@ pub enum FloatingSize {
     F64,
 }
 
+pub trait USizeBase: Copy + Clone {}
+
 /// A 32 bit value
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct USize32(u32);
 
 /// A 64 bit value
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct USize64(u64);
+
+impl USizeBase for USize32 {}
+impl USizeBase for USize64 {}
 
 /// A complete primitive value
 #[derive(Clone, Debug)]
@@ -53,8 +58,8 @@ pub enum PrimitiveValue {
 
 /// A value's location
 // TODO: How to convey volatile?
-#[derive(Clone, Debug)]
-pub enum StorageLocation<USize> {
+#[derive(Copy, Clone, Debug)]
+pub enum StorageLocation<USize: USizeBase> {
     /// The value is stored in the register
     Reg(Register),
 
@@ -66,10 +71,10 @@ pub enum StorageLocation<USize> {
     DerefAddr(USize),
 }
 
-#[derive(Clone, Debug)]
-pub enum RValue<USize> {
+#[derive(Copy, Clone, Debug)]
+pub enum RValue<USize: USizeBase> {
     Writeable(StorageLocation<USize>),
-    Literal(usize),// TODO: How do we store any value that can be read?
+    Literal(usize), // TODO: How do we store any value that can be read?
 }
 
 #[derive(Clone, Debug)]
@@ -83,7 +88,7 @@ pub enum JumpCondition {
 /// The math operators only operate on operands of the same type, and similar to x86, operands can
 /// be found in registers, at a fixed address, or by dereferencing a pointer in a register
 #[derive(Clone, Debug)]
-pub enum Instruction<USize> {
+pub enum Instruction<USize: USizeBase> {
     /// Moves a value from one place to another. This is somewhat analogous x86's MOV.
     /// Register to Register, Mem to Mem, Mem to Register, and Register to Mem are all contained
     /// here
@@ -135,14 +140,10 @@ pub enum Instruction<USize> {
 
     /// Returns the specified value, or `None` for void
     // TODO: How will we return structs?
-    Return {
-        value: RValue<USize>,
-    },
+    Return { value: RValue<USize> },
 
     /// Unconditional jump to instruction offset inside the current function
-    Jump {
-        offset: isize,
-    },
+    Jump { offset: isize },
 
     /// Conditional jump to instruction offset inside the current function if value is non zero
     ConditionalJump {
@@ -164,22 +165,34 @@ pub struct FunctionRef(usize);
 
 /// Represents a single high level assembled function
 #[derive(Clone, Debug)]
-pub struct Function<'name, USize> {
+pub struct Function<'name, USize: USizeBase> {
     pub name: &'name str,
     pub instructions: Vec<Instruction<USize>>,
 }
 
 /// Represents a partially assembled compilation unit with multiple functions
 #[derive(Clone, Debug)]
-pub struct CompilationUnit<'name, USize> {
+pub struct CompilationUnit<'name, USize: USizeBase> {
     functions: Vec<Function<'name, USize>>,
     //TODO: globals: Vec<???>,
     source: SourceIndex,
 }
 
-impl<'name, USize> Function<'name, USize> {
+/// A helper struct for allocaning unique registers
+pub struct RegisterAllocator(u16);
+
+impl<'name, USize: USizeBase> Function<'name, USize> {
+    pub fn new(name: &'name str, instrunctions: impl Into<Vec<Instruction<USize>>>) -> Self {
+        Self {
+            name,
+            instructions: instrunctions.into(),
+        }
+    }
+
     pub fn compute_ins_offset(&self, index: usize, offset: isize) -> Result<usize, ()> {
-        let u: usize = (offset + index as isize).try_into().expect("BUG: internal offset out of range");
+        let u: usize = (offset + index as isize)
+            .try_into()
+            .expect("BUG: internal offset out of range");
         if u >= self.instructions.len() {
             //Out of positive range
             Err(())
@@ -189,9 +202,31 @@ impl<'name, USize> Function<'name, USize> {
     }
 }
 
-impl<'name, USize> CompilationUnit<'name, USize> {
+impl<'name, USize: USizeBase> CompilationUnit<'name, USize> {
     /// Returns a reference to the desired function
     fn get_function(&self, function: FunctionRef) -> &Function<'name, USize> {
         &self.functions[function.0]
+    }
+}
+
+impl RegisterAllocator {
+    pub fn new() -> Self {
+        Self(0)
+    }
+
+    /// Allocates the next unique register
+    pub fn alloc(&mut self) -> Register {
+        self.0 = self
+            .0
+            .checked_add(1)
+            .expect("Register id overflow. Too many registers allocated!");
+        Register(NonZeroU16::new(self.0).unwrap())
+    }
+}
+
+impl Iterator for RegisterAllocator {
+    type Item = Register;
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.alloc())
     }
 }

@@ -7,7 +7,7 @@
 //!
 //! Register allocation occurs in this step
 
-use super::high::{CompilationUnit, USize64, USize32};
+use super::high::{CompilationUnit, USize32, USize64, USizeBase};
 
 mod aarch64;
 mod x86_64;
@@ -19,7 +19,8 @@ pub enum Backend<'name> {
     X86_64(CompilationUnit<'name, USize64>),
 }
 
-pub fn do_codegen<'name, USize>(unit: CompilationUnit<'name, USize>, backend: Backend) /* -> WHAT */
+pub fn do_codegen<USize: USizeBase>(unit: CompilationUnit<'_, USize>, backend: Backend)
+/* -> WHAT */
 {
     match backend {
         Backend::Aarch64(unit) => aarch64::do_codegen(unit),
