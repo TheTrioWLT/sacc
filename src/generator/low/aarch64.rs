@@ -5,7 +5,7 @@
 
 use crate::generator::high::{CompilationUnit, USize64};
 
-pub fn do_codegen(unit: CompilationUnit<'_, '_, USize64>) {
+pub fn do_codegen(unit: CompilationUnit<'_, USize64>) {
 
     //TODO what is the return?
 }

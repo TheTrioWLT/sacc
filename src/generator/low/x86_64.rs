@@ -1,10 +1,8 @@
 use std::collections::HashMap;
-
 use crate::generator::high::{self, CompilationUnit, USize64, Function};
-
 use iced_x86::code_asm::*;
 
-pub fn do_codegen(unit: CompilationUnit<'_, '_, USize64>) -> Result<(), IcedError> {
+pub fn do_codegen(unit: CompilationUnit<'_, USize64>) -> Result<(), IcedError> {
     //Build list of indices that are jumped to because `unit` only has jump instructions with the
     //destination
     let mut a = CodeAssembler::new(64)?;
@@ -65,11 +63,14 @@ pub fn do_codegen(unit: CompilationUnit<'_, '_, USize64>) -> Result<(), IcedErro
 
 fn gen_function(func: Function<'_, USize64>) -> Result<CodeAssembler, IcedError> {
     let mut a = CodeAssembler::new(64)?;
-    let mut labels = HashMap::new();
+    //let mut labels = HashMap::new();
     let ins = &func.instructions;
     for i in 0..ins.len() {
         if let high::Instruction::ConditionalJump { offset, value, condition } = ins[i].clone() {
-            let dst: usize = (offset + i as isize).try_into()?;
+            let dst: usize = (offset + i as isize).try_into().expect("BUG: internal offset out of range");
+            if dst >= ins.len() {
+                panic!("Same as above");
+            }
         }
     }
 

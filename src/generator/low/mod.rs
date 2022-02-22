@@ -13,19 +13,17 @@ mod aarch64;
 mod x86_64;
 
 #[derive(Clone, Debug)]
-pub enum Backend<'name, 'source> {
-    Aarch64(CompilationUnit<'name, 'source, USize64>),
-    Armv7(CompilationUnit<'name, 'source, USize32>),
-    X86_64(CompilationUnit<'name, 'source, USize64>),
+pub enum Backend<'name> {
+    Aarch64(CompilationUnit<'name, USize64>),
+    Armv7(CompilationUnit<'name, USize32>),
+    X86_64(CompilationUnit<'name, USize64>),
 }
 
-pub fn do_codegen<'name, 'source>(
-    backend: Backend<'name, 'source>,
-) /* -> WHAT */
+pub fn do_codegen<'name, USize>(unit: CompilationUnit<'name, USize>, backend: Backend) /* -> WHAT */
 {
     match backend {
         Backend::Aarch64(unit) => aarch64::do_codegen(unit),
         Backend::Armv7(unit) => unimplemented!(),
-        Backend::X86_64(unit) => x86_64::do_codegen(unit),
+        Backend::X86_64(unit) => x86_64::do_codegen(unit).unwrap(),
     }
 }
