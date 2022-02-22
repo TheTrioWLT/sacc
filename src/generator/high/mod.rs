@@ -15,9 +15,11 @@ use crate::diagnostic::Source;
 /// A high level unnamed register
 // Use use `NonZeroU16` and give up one value so that the niche optimization can help us.
 // Register numbers are arbitrary anyway, so just start at 1
+#[derive(Clone, Debug)]
 pub struct Register(NonZeroU16);
 
 /// The size of an integer, either 1, 2, 4, or 8 bytes
+#[derive(Clone, Debug)]
 pub enum IntegerSize {
     B8,
     B16,
@@ -26,18 +28,22 @@ pub enum IntegerSize {
 }
 
 /// The possible sizes of a floating point value
+#[derive(Clone, Debug)]
 pub enum FloatingSize {
     F32,
     F64,
 }
 
 /// A 32 bit value
+#[derive(Clone, Debug)]
 pub struct USize32(u32);
 
 /// A 64 bit value
+#[derive(Clone, Debug)]
 pub struct USize64(u64);
 
 /// A complete primitive value
+#[derive(Clone, Debug)]
 pub enum PrimitiveValue {
     Signed(IntegerSize),
     Unsigned(IntegerSize),
@@ -47,6 +53,7 @@ pub enum PrimitiveValue {
 
 /// A value's location
 // TODO: How to convey volatile?
+#[derive(Clone, Debug)]
 pub enum StorageLocation<USize> {
     /// The value is stored in the register
     Reg(Register),
@@ -59,10 +66,17 @@ pub enum StorageLocation<USize> {
     DerefAddr(USize),
 }
 
+#[derive(Clone, Debug)]
+pub enum JumpCondition {
+    Zero,
+    NonZero,
+}
+
 /// The high level instructions, including their operands and destination
 ///
 /// The math operators only operate on operands of the same type, and similar to x86, operands can
 /// be found in registers, at a fixed address, or by dereferencing a pointer in a register
+#[derive(Clone, Debug)]
 pub enum Instruction<USize> {
     /// Moves a value from one place to another. This is somewhat analogous x86's MOV.
     /// Register to Register, Mem to Mem, Mem to Register, and Register to Mem are all contained
@@ -107,14 +121,32 @@ pub enum Instruction<USize> {
 
     /// Calls a function, storing the return value in `return_value`
     Call {
-        // TODO ??? How do we reference functions at this stage
+        /// The function we wish to call
+        function: FunctionRef,
         return_value: Option<StorageLocation<USize>>,
     },
 
     /// Returns the specified value, or `None` for void
     // TODO: How will we return structs?
     Return {
-        value: Option<StorageLocation<USize>>,
+        value: StorageLocation<USize>,
+    },
+
+    /// Unconditional jump to instruction offset inside the current function
+    Jump {
+        offset: isize,
+    },
+
+    /// Conditional jump to instruction offset inside the current function if value is non zero
+    ConditionalJump {
+        /// The relative offset from this instruction to jump to
+        /// Offset 0 is this instruction, 1 is the next instruction, -10 is 10 instructions before, etc.
+        offset: isize,
+        // Abstract the flags register away by having the user specify what (most likely a register)
+        // value they want to compare with zero. Usually the value of this register will be set by
+        // the previous instruction so we don't need to emit an extra instruction. TODO: Maybe add flags?
+        value: StorageLocation<USize>,
+        condition: JumpCondition,
     },
 }
 
@@ -124,17 +156,19 @@ pub enum Instruction<USize> {
 pub struct FunctionRef(usize);
 
 /// Represents a single high level assembled function
+#[derive(Clone, Debug)]
 pub struct Function<'name, USize> {
-    name: &'name str,
-    instructions: Vec<Instruction<USize>>,
+    pub name: &'name str,
+    pub instructions: Vec<Instruction<USize>>,
 }
 
 /// Represents a partially assembled compilation unit with multiple functions
+#[derive(Clone, Debug)]
 pub struct CompilationUnit<'name, 'source, USize> {
-    functions: Vec<Function<'name, USize>>,
+    pub functions: Vec<Function<'name, USize>>,
     //TODO: globals: Vec<???>,
     
-    source: &'source Source,
+    pub source: &'source Source,
 }
 
 impl<'name, 'source, USize> CompilationUnit<'name, 'source, USize> {
