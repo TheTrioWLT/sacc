@@ -67,6 +67,12 @@ pub enum StorageLocation<USize> {
 }
 
 #[derive(Clone, Debug)]
+pub enum RValue<USize> {
+    Writeable(StorageLocation<USize>),
+    Literal(usize),// TODO: How do we store any value that can be read?
+}
+
+#[derive(Clone, Debug)]
 pub enum JumpCondition {
     Zero,
     NonZero,
@@ -82,39 +88,39 @@ pub enum Instruction<USize> {
     /// Register to Register, Mem to Mem, Mem to Register, and Register to Mem are all contained
     /// here
     Move {
-        src: StorageLocation<USize>,
+        src: RValue<USize>,
         dst: StorageLocation<USize>,
         value: PrimitiveValue,
     },
 
     /// dst = a + b
     Add {
-        a: StorageLocation<USize>,
-        b: StorageLocation<USize>,
+        a: RValue<USize>,
+        b: RValue<USize>,
         dst: StorageLocation<USize>,
         value: PrimitiveValue,
     },
 
     /// dst = a - b
     Subtract {
-        a: StorageLocation<USize>,
-        b: StorageLocation<USize>,
+        a: RValue<USize>,
+        b: RValue<USize>,
         dst: StorageLocation<USize>,
         value: PrimitiveValue,
     },
 
     /// dst = a * b
     Multiply {
-        a: StorageLocation<USize>,
-        b: StorageLocation<USize>,
+        a: RValue<USize>,
+        b: RValue<USize>,
         dst: StorageLocation<USize>,
         value: PrimitiveValue,
     },
 
     /// dst = a / b
     Divide {
-        a: StorageLocation<USize>,
-        b: StorageLocation<USize>,
+        a: RValue<USize>,
+        b: RValue<USize>,
         dst: StorageLocation<USize>,
         value: PrimitiveValue,
     },
@@ -130,7 +136,7 @@ pub enum Instruction<USize> {
     /// Returns the specified value, or `None` for void
     // TODO: How will we return structs?
     Return {
-        value: StorageLocation<USize>,
+        value: RValue<USize>,
     },
 
     /// Unconditional jump to instruction offset inside the current function
@@ -169,6 +175,18 @@ pub struct CompilationUnit<'name, USize> {
     functions: Vec<Function<'name, USize>>,
     //TODO: globals: Vec<???>,
     source: SourceIndex,
+}
+
+impl<'name, USize> Function<'name, USize> {
+    pub fn compute_ins_offset(&self, index: usize, offset: isize) -> Result<usize, ()> {
+        let u: usize = (offset + index as isize).try_into().expect("BUG: internal offset out of range");
+        if u >= self.instructions.len() {
+            //Out of positive range
+            Err(())
+        } else {
+            Ok(u)
+        }
+    }
 }
 
 impl<'name, USize> CompilationUnit<'name, USize> {

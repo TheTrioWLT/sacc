@@ -63,16 +63,37 @@ pub fn do_codegen(unit: CompilationUnit<'_, USize64>) -> Result<(), IcedError> {
 
 fn gen_function(func: Function<'_, USize64>) -> Result<CodeAssembler, IcedError> {
     let mut a = CodeAssembler::new(64)?;
-    //let mut labels = HashMap::new();
+
+    //First we need to fill in mapping between jump destinations and the label that iced will use
+    //to jump there. We need this because we can only create labels in place, so we need to know
+    //beforehand which parts we are going to jump to
+    let mut labels = HashMap::new();
     let ins = &func.instructions;
     for i in 0..ins.len() {
-        if let high::Instruction::ConditionalJump { offset, value, condition } = ins[i].clone() {
-            let dst: usize = (offset + i as isize).try_into().expect("BUG: internal offset out of range");
-            if dst >= ins.len() {
-                panic!("Same as above");
-            }
+        if let high::Instruction::ConditionalJump { offset, value: _, condition: _ } = &ins[i] {
+            let dst = func.compute_ins_offset(i, *offset).unwrap();
+            labels.entry(dst).or_insert(a.create_label());
+        }
+    }
+    for i in 0..ins.len() {
+        // A jump in this function wants to jump to this location, set the label's location for iced
+        if let Some(label) = labels.get_mut(&i) {
+            a.set_label(label)?;
         }
     }
 
     Ok(a)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic() {
+        use high::{Instruction, StorageLocation};
+        let one = StorageLocation::
+        let program = vec![Instruction::Move {src: {}, dst: {}, value: {}}];
+    }
+
 }
