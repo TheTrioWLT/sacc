@@ -4,22 +4,26 @@
 //! High level assembly tokens are cross platform and loosely based on ARM and x86 instructions.
 //! This lets us write the optimization algorithms once, and apply them to all the backends.
 //! Similar to LLVM IR, there are an infinite number of immediate registers and they are all
-//! namespaced by the function they reside in. Parameters are passed in the first 1..=N registers.
-//! Values are returned via the Return instruction, and any register / value can be returned.
+//! namespaced by the function they reside in. Values are returned via the Return instruction.
+//! Any register / value can be returned.
+//!
+//! Only architecture specific optimazitons are applied at the low level, so it is the
+//! responsibility of the high level to optimize the cross arch assembly as much as possible
+//! because the lower levels generate basically expactly what they are given
 //!
 
-use std::num::NonZeroU16;
+use std::{fmt::Binary, num::NonZeroU16};
 
 use crate::diagnostic::SourceIndex;
 
 /// A high level unnamed register
 // Use use `NonZeroU16` and give up one value so that the niche optimization can help us.
 // Register numbers are arbitrary anyway, so just start at 1
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Register(NonZeroU16);
 
 /// The size of an integer, either 1, 2, 4, or 8 bytes
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum IntegerSize {
     B8,
     B16,
@@ -28,27 +32,27 @@ pub enum IntegerSize {
 }
 
 /// The possible sizes of a floating point value
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum FloatingSize {
     F32,
     F64,
 }
 
-pub trait USizeBase: Copy + Clone {}
+pub trait USizeBase: Copy + Clone + Eq {}
 
 /// A 32 bit value
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct USize32(u32);
 
 /// A 64 bit value
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct USize64(u64);
 
 impl USizeBase for USize32 {}
 impl USizeBase for USize64 {}
 
 /// A complete primitive value
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum PrimitiveValue {
     Signed(IntegerSize),
     Unsigned(IntegerSize),
@@ -56,10 +60,10 @@ pub enum PrimitiveValue {
     Pointer,
 }
 
-/// A value's location
+/// A value this has a writable location
 // TODO: How to convey volatile?
-#[derive(Copy, Clone, Debug)]
-pub enum StorageLocation<USize: USizeBase> {
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum LValue<USize: USizeBase> {
     /// The value is stored in the register
     Reg(Register),
 
@@ -67,20 +71,38 @@ pub enum StorageLocation<USize: USizeBase> {
     DerefReg(Register),
 
     /// The value can be found by dereferencing a fixed address
-    // TODO: We probably dont know the address at this step
+    // TODO: We probably dont know the address at this step.
+    // Maybe use some kind of `GlobalRef` like how we have FuncitonRef? But then code like this:
+    // ```
+    // int* addr = (int*) 0x02000000;
+    // int a = *addr
+    // ```
+    // would have to be 2 high level instructions:
+    // `{Move(tmp_register, 0x02000000), Move(var_a, DerefReg(tmp_register))]`
+    // and without re-optimizing this in the low level generator back into one instruction, we
+    // would loose some performanace
     DerefAddr(USize),
 }
 
+/// A value with a readable location. Can be an LValue or a literal
 #[derive(Copy, Clone, Debug)]
 pub enum RValue<USize: USizeBase> {
-    Writeable(StorageLocation<USize>),
-    Literal(usize), // TODO: How do we store any value that can be read?
+    Writeable(LValue<USize>),
+    Literal(usize), // TODO: How do we store any value that can be read? an enum?
 }
 
 #[derive(Clone, Debug)]
 pub enum JumpCondition {
     Zero,
     NonZero,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct BinaryOperator<USize: USizeBase> {
+    pub a: RValue<USize>,
+    pub b: RValue<USize>,
+    pub dst: LValue<USize>,
+    pub value: PrimitiveValue,
 }
 
 /// The high level instructions, including their operands and destination
@@ -94,48 +116,34 @@ pub enum Instruction<USize: USizeBase> {
     /// here
     Move {
         src: RValue<USize>,
-        dst: StorageLocation<USize>,
+        dst: LValue<USize>,
         value: PrimitiveValue,
     },
 
+    /// Loads the nth parameter from arguments into the specified register. This is the only way to
+    /// access parameters because at this stage we don't know if this architecture supports passing
+    /// parameters in registers or the stack.
+    LoadParameter { n: u8, dst: Register },
+
+    // TODO: Maybe use structs to store all inner data here to make matches nicer?
     /// dst = a + b
-    Add {
-        a: RValue<USize>,
-        b: RValue<USize>,
-        dst: StorageLocation<USize>,
-        value: PrimitiveValue,
-    },
+    Add(BinaryOperator<USize>),
 
     /// dst = a - b
-    Subtract {
-        a: RValue<USize>,
-        b: RValue<USize>,
-        dst: StorageLocation<USize>,
-        value: PrimitiveValue,
-    },
+    Subtract(BinaryOperator<USize>),
 
     /// dst = a * b
-    Multiply {
-        a: RValue<USize>,
-        b: RValue<USize>,
-        dst: StorageLocation<USize>,
-        value: PrimitiveValue,
-    },
+    Multiply(BinaryOperator<USize>),
 
     /// dst = a / b
-    Divide {
-        a: RValue<USize>,
-        b: RValue<USize>,
-        dst: StorageLocation<USize>,
-        value: PrimitiveValue,
-    },
+    Divide(BinaryOperator<USize>),
 
     /// Calls a function, storing the return value in `return_value`.
     /// Parameters are passin in registers 1..N
     Call {
         /// The function we wish to call
         function: FunctionRef,
-        return_value: Option<StorageLocation<USize>>,
+        return_value: Option<LValue<USize>>,
     },
 
     /// Returns the specified value, or `None` for void
@@ -153,7 +161,7 @@ pub enum Instruction<USize: USizeBase> {
         // Abstract the flags register away by having the user specify what (most likely a register)
         // value they want to compare with zero. Usually the value of this register will be set by
         // the previous instruction so we don't need to emit an extra instruction. TODO: Maybe add flags?
-        value: StorageLocation<USize>,
+        value: LValue<USize>,
         condition: JumpCondition,
     },
 }
@@ -228,5 +236,28 @@ impl Iterator for RegisterAllocator {
     type Item = Register;
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.alloc())
+    }
+}
+
+impl<USize: USizeBase> BinaryOperator<USize> {
+    /// Converts this format `c = a <operation> b` to `a <operation>= b`
+    /// This only works for some kinds of self, where dest is the same as a or b, so this function
+    /// returns an option when the conversion cannot be made.
+    /// This function will also re-order a and b so that the destination is the first return value.
+    ///
+    /// I.E if self is { a: Lit(5), b: r2, dst: r2}, then the return value will be `(r2, Lit(5))`, because
+    /// the result of the binary operation is stored in r2.
+    pub fn to_two_args(self) -> Option<(LValue<USize>, RValue<USize>)> {
+        if let RValue::Writeable(a) = self.a {
+            if self.dst == a {
+                return Some((a, self.b));
+            }
+        }
+        if let RValue::Writeable(b) = self.b {
+            if self.dst == b {
+                return Some((b, self.a));
+            }
+        }
+        None
     }
 }

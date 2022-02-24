@@ -20,4 +20,4 @@ pathdiff = "0.2.1"
 version = "1.15.0"
 default-features = false
 optional = true
-features = ["std", "block_encoder", "fast_fmt", "intel", "code_asm", "instr_info", "op_code_info"]
+features = ["std", "block_encoder", "fast_fmt", "intel", "code_asm", "instr_info", "op_code_info", "decoder", "nasm"]
