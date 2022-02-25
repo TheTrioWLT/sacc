@@ -2,8 +2,9 @@
 rustup update stable && rustup default stable
 cargo build --release
 git clone https://github.com/python/cpython.git --depth 1
-export CC=$(pwd)/target/debug/sacc
+export CC=$(pwd)/target/release/sacc
 echo $CC
+file $CC
 cd cpython
 if ! ./configure --disable-silent-rules ; then
     echo "/n/n/n==============================================/n/n/n"
