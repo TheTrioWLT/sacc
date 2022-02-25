@@ -11,6 +11,8 @@ pub type LexResult = Result<Vec<PToken>, ()>;
 
 /// Runs the Lexer that takes the input source string and produces a Vec<PToken> for later preprocessing
 pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
+    // TODO: Emit warning for attempted nested multi-line comments
+
     let mut tokens = Vec::new();
 
     let source = input_file.src.as_ref().unwrap();
@@ -24,6 +26,11 @@ pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
     // we had an error or not after lexing is complete
     let mut had_error = false;
 
+    // This keeps track of if we are in a multi-line comment, which will have to be removed at this
+    // stage because it becomes a burden if it must be removed at a later stage, as it does not
+    // affect any of the actual code
+    let mut multi_comment_start: Option<PToken> = None;
+
     while let Some(kind) = lexer.next() {
         // Gets the slice of the source code that the current token is from
         let slice = lexer.slice();
@@ -36,20 +43,55 @@ pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
             end: index + slice.len(),
         };
 
-        if token.kind == PTokenKind::ErrorGeneric {
-            let text = session.span_to_string(&token.into()).unwrap();
+        if token.kind == PTokenKind::CommentMultiStart {
+            if let Some(comment_start) = multi_comment_start {
+                session
+                    .struct_span_warn(comment_start.into(), "`/*` within block comment")
+                    .note("block comments cannot be nested")
+                    .emit();
+            } else {
+                multi_comment_start = Some(token);
+            }
+        } else if token.kind == PTokenKind::CommentMultiEnd {
+            if multi_comment_start.is_some() {
+                multi_comment_start = None;
+            } else {
+                session
+                    .struct_error("unexpected token `*/`")
+                    .span_label(token.into(), "lone block comment terminator")
+                    .emit();
 
-            session
-                .struct_error(format!("error lexing token `{}`", text))
-                .span_label(token.into(), "invalid token found")
-                .emit();
+                had_error = true;
+            }
+        } else {
+            if multi_comment_start.is_none() {
+                if token.kind == PTokenKind::ErrorGeneric {
+                    let text = session.span_to_string(&token.into()).unwrap();
 
-            had_error = true;
+                    session
+                        .struct_error(format!("error lexing token `{}`", text))
+                        .span_label(token.into(), "invalid token found")
+                        .emit();
+
+                    had_error = true;
+                }
+
+                tokens.push(token);
+            }
         }
 
         index += slice.len();
+    }
 
-        tokens.push(token);
+    if let Some(comment_start) = multi_comment_start {
+        session
+            .struct_span_error(
+                comment_start.into(),
+                "Unterminated block comment begins here",
+            )
+            .emit();
+
+        had_error = true;
     }
 
     if !had_error {
@@ -212,7 +254,7 @@ mod tests {
     #[test]
     fn lex_punctuators() {
         let (sess, src) = dummy_sess(
-            r#"( ) , [ ] { } . -> ++ -- & * + - ~ ! / % << >> < > <= >= == != ^ | && || ? : ; ... = *= /= %= += -= <<= >>= &= ^= |= # ## <: :> <% %> %: %:%:"#,
+            r#"( ) , [ ] { } . -> ++ -- & * + - ~ ! / % << >> < > <= >= == != ^ | && || ? : ; ... = *= /= %= += -= <<= >>= &= ^= |= # ## <: :> <% %> %: %:%: \"#,
         );
 
         let input = super::lex(&sess, src.clone()).unwrap();
@@ -272,6 +314,31 @@ mod tests {
             (PTokenKind::Punctuator, "%>"),
             (PTokenKind::Punctuator, "%:"),
             (PTokenKind::Punctuator, "%:%:"),
+            (PTokenKind::Backslash, "\\"),
+        ];
+
+        check_matches(src, input, reference);
+    }
+
+    #[test]
+    fn lex_comments() {
+        let (sess, src) = dummy_sess(
+            r#"// This is a single line comment
+/*
+ * This is a multi-line comment
+ */"#,
+        );
+
+        let input = super::lex(&sess, src.clone()).unwrap();
+
+        // NOTE: Multi-line comments are stripped during lexing, and therefore should not show up
+        // here
+        let reference = vec![
+            (
+                PTokenKind::CommentSingle,
+                r#"// This is a single line comment"#,
+            ),
+            (PTokenKind::Newline, "\n"),
         ];
 
         check_matches(src, input, reference);

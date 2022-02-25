@@ -1,6 +1,7 @@
 use sacc::{
     diagnostic::{session::Session, Handler, HandlerFlags, SourceManager},
     lexer::lex,
+    preprocessor::phase2::phase2,
 };
 use std::{path::Path, process::exit, rc::Rc};
 
@@ -21,9 +22,13 @@ fn main() {
 
     match session.load_file(path) {
         Ok(root_src) => {
+            // Lex tokens from our main source
             if let Ok(tokens) = lex(&session, root_src) {
-                for token in tokens.iter() {
-                    println!("{:?}", token);
+                // Run phase 2 of translation, which removes comments and backslashes and newlines
+                if let Ok(tokens) = phase2(tokens, &session) {
+                    for token in tokens.iter() {
+                        println!("{:?}", token);
+                    }
                 }
             }
         }

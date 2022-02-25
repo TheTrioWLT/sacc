@@ -66,8 +66,14 @@ pub enum PTokenKind {
     CommentSingle,
 
     /// A multi-line comment
-    #[regex(r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/")]
-    CommentMulti,
+    #[regex(r"/\*")]
+    CommentMultiStart,
+
+    #[regex(r"\*/")]
+    CommentMultiEnd,
+
+    #[token("\\")]
+    Backslash,
 
     /// Any non-newline whitespace, which we can't skip for the single reason that: preprocessor
     /// operations

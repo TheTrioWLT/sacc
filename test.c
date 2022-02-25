@@ -3,5 +3,12 @@
 int main() {
 	printf("Hello world");
 
-	return 0;
+	// Single-line comment
+
+	/*
+	 * $$$ test $$$
+	 */
+
+	return \
+		0;
 }
