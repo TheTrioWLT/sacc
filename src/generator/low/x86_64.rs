@@ -156,8 +156,10 @@ fn gen_function(func: Function<'_, USize64>) -> Result<CodeAssembler, IcedError>
         .map(|(i, reg)| (*reg, available_phys_regs32[i]))
         .collect();
 
-    let map_register64 = |reg: high::Register| -> iced::code_asm::AsmRegister64 { phys_regs64[&reg] };
-    let map_register32 = |reg: high::Register| -> iced::code_asm::AsmRegister32 { phys_regs32[&reg] };
+    let map_register64 =
+        |reg: high::Register| -> iced::code_asm::AsmRegister64 { phys_regs64[&reg] };
+    let map_register32 =
+        |reg: high::Register| -> iced::code_asm::AsmRegister32 { phys_regs32[&reg] };
 
     for (i, ins) in ins.iter().enumerate() {
         // A jump in this function wants to jump to this location, set the label's location for iced
