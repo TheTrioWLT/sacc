@@ -48,13 +48,11 @@ pub fn phase2(tokens: Vec<PToken>, session: &Session) -> Result<Vec<PToken>, ()>
                 has_error = true;
                 backslash = None;
             }
-        } else {
-            if token.kind != PTokenKind::CommentSingle {
-                if token.kind == PTokenKind::Backslash {
-                    backslash = Some(token);
-                } else {
-                    new_tokens.push(token);
-                }
+        } else if token.kind != PTokenKind::CommentSingle {
+            if token.kind == PTokenKind::Backslash {
+                backslash = Some(token);
+            } else {
+                new_tokens.push(token);
             }
         }
     }

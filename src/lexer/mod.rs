@@ -11,8 +11,6 @@ pub type LexResult = Result<Vec<PToken>, ()>;
 
 /// Runs the Lexer that takes the input source string and produces a Vec<PToken> for later preprocessing
 pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
-    // TODO: Emit warning for attempted nested multi-line comments
-
     let mut tokens = Vec::new();
 
     let source = input_file.src.as_ref().unwrap();
@@ -63,21 +61,19 @@ pub fn lex(session: &Session, input_file: Rc<SourceFile>) -> LexResult {
 
                 had_error = true;
             }
-        } else {
-            if multi_comment_start.is_none() {
-                if token.kind == PTokenKind::ErrorGeneric {
-                    let text = session.span_to_string(&token.into()).unwrap();
+        } else if multi_comment_start.is_none() {
+            if token.kind == PTokenKind::ErrorGeneric {
+                let text = session.span_to_string(&token.into()).unwrap();
 
-                    session
-                        .struct_error(format!("error lexing token `{}`", text))
-                        .span_label(token.into(), "invalid token found")
-                        .emit();
+                session
+                    .struct_error(format!("error lexing token `{}`", text))
+                    .span_label(token.into(), "invalid token found")
+                    .emit();
 
-                    had_error = true;
-                }
-
-                tokens.push(token);
+                had_error = true;
             }
+
+            tokens.push(token);
         }
 
         index += slice.len();
