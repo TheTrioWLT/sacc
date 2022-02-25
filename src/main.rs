@@ -5,6 +5,7 @@ use sacc::{
 use std::{path::Path, process::exit, rc::Rc};
 
 fn main() {
+    println!("sacc run with args: {:?}", std::env::args());
     let handler_flags = HandlerFlags {
         colored_output: true,
         emit_warnings: true,
